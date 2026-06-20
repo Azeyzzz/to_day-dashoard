@@ -2,13 +2,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #fbf7f0;
-  --color-card: #fffdf9;
-  --color-card-border: #e8dfd2;
-  --color-ink: #3a332c;
-  --color-muted: #7c7468;
-  --color-accent: #c8693f;
-  --color-accent-2: #7c8b6f;
+  --color-paper: #f6f0fb;
+  --color-card: #fffafc;
+  --color-card-border: #e7d9f3;
+  --color-ink: #342741;
+  --color-muted: #6f5e84;
+  --color-accent: #8b5cf6;
+  --color-accent-2: #c084fc;
 
   --font-serif: "Fraunces", serif;
   --font-sans: "Inter", sans-serif;
@@ -18,6 +18,47 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-paper: #1c1424;
+  --color-card: #251b31;
+  --color-card-border: #4d3a63;
+  --color-ink: #f4ebff;
+  --color-muted: #c3b2d9;
+  --color-accent: #a78bfa;
+  --color-accent-2: #d8b4fe;
+}
+
 body {
   margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background:
+    radial-gradient(circle at top, rgba(167, 139, 250, 0.18), transparent 35%),
+    radial-gradient(
+      circle at bottom right,
+      rgba(192, 132, 252, 0.12),
+      transparent 30%
+    ),
+    var(--color-paper);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(139, 92, 246, 0.22);
 }
