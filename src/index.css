@@ -3,6 +3,7 @@
 
 @theme {
   --color-paper: #f6f0fb;
+  --color-background: #fffafc;
   --color-card: #fffafc;
   --color-card-border: #e7d9f3;
   --color-ink: #342741;
@@ -29,6 +30,7 @@ html {
 .dark {
   color-scheme: dark;
   --color-paper: #1c1424;
+  --color-background: #22182d;
   --color-card: #251b31;
   --color-card-border: #4d3a63;
   --color-ink: #f4ebff;

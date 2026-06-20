@@ -522,8 +522,8 @@ function CalendarWidget({
       </div>
 
       <div className="grid grid-cols-7 gap-2 text-center text-xs">
-        {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
-          <div key={day} className="font-medium text-accent-2">
+        {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+          <div key={`${day}-${index}`} className="font-medium text-accent-2">
             {day}
           </div>
         ))}
