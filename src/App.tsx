@@ -5,6 +5,7 @@ type Habit = {
   id: number;
   label: string;
   done: boolean;
+  completedDates: string[]; // YYYY-MM-DD dates when habit was completed
 };
 
 type Reminder = {
@@ -31,12 +32,14 @@ const HABITS_STORAGE_KEY = "to-day-dashboard.habits";
 const REMINDER_STORAGE_KEY = "to-day-dashboard.reminders";
 const NOTES_STORAGE_KEY = "to-day-dashboard.notes";
 const EVENTS_STORAGE_KEY = "to-day-dashboard.events";
+const NAME_STORAGE_KEY = "to-day-dashboard.name";
 
-function getGreeting(): string {
+function getGreeting(name?: string): string {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning Zaeya";
-  if (hour < 18) return "Good afternoon Zaeya";
-  return "Good evening Zaeya";
+  const who = name ? name : "Friend";
+  if (hour < 12) return `Good morning ${who}`;
+  if (hour < 18) return `Good afternoon ${who}`;
+  return `Good evening ${who}`;
 }
 
 function getToday(): string {
@@ -60,25 +63,32 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 function formatInputDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
-
+function getInitialName(): string {
+  return loadFromStorage<string>(NAME_STORAGE_KEY, "Friend");
+}
 function getInitialHabits(): Habit[] {
   return loadFromStorage<Habit[]>(HABITS_STORAGE_KEY, [
-    { id: 1, label: "Drink water", done: false },
-    { id: 2, label: "Move your body", done: false },
-    { id: 3, label: "Read for 10 minutes", done: false },
+    { id: 1, label: "Start a habit", done: false, completedDates: [] },
+    { id: 2, label: "Add one below", done: false, completedDates: [] },
+    {
+      id: 3,
+      label: "Remove existing ones below",
+      done: false,
+      completedDates: [],
+    },
   ]);
 }
 
 function getInitialReminders(): Reminder[] {
   return loadFromStorage<Reminder[]>(REMINDER_STORAGE_KEY, [
-    { id: 1, title: "Meeting with team", time: "2:00 PM" },
-    { id: 2, title: "Water plants", time: "6:00 PM" },
+    { id: 1, title: "Set reminders here", time: "2:00 PM" },
+    { id: 2, title: "LOCK IN", time: "6:00 PM" },
   ]);
 }
 
 function getInitialNotes(): StickyNote[] {
   return loadFromStorage<StickyNote[]>(NOTES_STORAGE_KEY, [
-    { id: 1, text: "Focus on the top 3 tasks.", color: "lavender" },
+    { id: 1, text: "Make your own sticky notes :P", color: "lavender" },
   ]);
 }
 
@@ -119,6 +129,7 @@ function getDaysInMonth(date: Date): (number | null)[] {
 }
 
 function App() {
+  const [name, setName] = useState<string>(getInitialName);
   const [habits, setHabits] = useState<Habit[]>(getInitialHabits);
   const [reminders, setReminders] = useState<Reminder[]>(getInitialReminders);
   const [notes, setNotes] = useState<StickyNote[]>(getInitialNotes);
@@ -185,23 +196,43 @@ function App() {
   }, [theme]);
 
   function addHabit() {
-    if (habits.length >= 3) return;
-
     const label = newHabit.trim();
     if (!label) return;
 
+    // prevent exact-duplicate labels (case-insensitive)
+    const exists = habits.some(
+      (h) => h.label.trim().toLowerCase() === label.toLowerCase(),
+    );
+    if (exists) {
+      setNewHabit("");
+      return;
+    }
+
     setHabits((current) => [
-      { id: Date.now(), label, done: false },
+      { id: Date.now(), label, done: false, completedDates: [] },
       ...current,
     ]);
     setNewHabit("");
   }
 
   function toggleHabit(id: number) {
+    const today = formatInputDate(new Date());
     setHabits((current) =>
-      current.map((habit) =>
-        habit.id === id ? { ...habit, done: !habit.done } : habit,
-      ),
+      current.map((habit) => {
+        if (habit.id !== id) return habit;
+
+        const dates = habit.completedDates ?? [];
+        const already = dates.includes(today);
+        const completedDates = already
+          ? dates.filter((d) => d !== today)
+          : [today, ...dates];
+
+        return {
+          ...habit,
+          completedDates,
+          done: !already,
+        };
+      }),
     );
   }
 
@@ -312,7 +343,7 @@ function App() {
               {getToday()}
             </p>
             <h1 className="mt-1 font-serif text-4xl text-ink">
-              {getGreeting()}. Let's see what today holds.
+              {getGreeting(name)}. Welcome to your To_Day Dashboard.
             </h1>
             <div className="mt-5 h-px w-full bg-gradient-to-r from-accent via-card-border to-transparent" />
           </div>
@@ -400,6 +431,9 @@ function App() {
               deleteNote={deleteNote}
             />
           </Card>
+          <Card title="Settings">
+            <SettingWidget currentName={name} setName={setName} />
+          </Card>
         </div>
       </main>
     </div>
@@ -424,7 +458,71 @@ function Card({
     </section>
   );
 }
+function SettingWidget({
+  currentName,
+  setName,
+}: {
+  currentName: string;
+  setName: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(currentName);
 
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-ink">Display name</p>
+      </div>
+
+      {editing ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const trimmed = draft.trim();
+            if (trimmed) setName(trimmed);
+            setEditing(false);
+          }}
+          className="flex gap-2"
+        >
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="w-full rounded-xl border border-card-border bg-background px-4 py-2 text-ink outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-xl bg-accent px-4 py-2 text-white"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(currentName);
+              setEditing(false);
+            }}
+            className="rounded-xl border border-card-border px-4 py-2 text-muted"
+          >
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-ink">{currentName}</div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="rounded-xl border border-card-border px-3 py-2 text-sm text-accent-2"
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 function CalendarWidget({
   todayDate,
   todayMonth,
@@ -637,7 +735,7 @@ function CalendarWidget({
             type="submit"
             className="rounded-xl bg-accent px-4 py-3 font-medium text-white"
           >
-            Save Event
+            Save Event!
           </button>
         </form>
       ) : null}
@@ -700,6 +798,35 @@ function HabitWidget({
   editingHabitLabel: string;
   setEditingHabitLabel: (value: string) => void;
 }) {
+  // helper to compute last-7-days progress percentage
+  function last7Progress(dates?: string[]) {
+    const datesArr = dates ?? [];
+    const today = new Date();
+    const last7 = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      return formatInputDate(d);
+    });
+    const completedCount = last7.reduce(
+      (acc, day) => (datesArr.includes(day) ? acc + 1 : acc),
+      0,
+    );
+    return {
+      percent: Math.round((completedCount / 7) * 100),
+      completedCount,
+    };
+  }
+
+  // overall today's progress across all habits
+  const todayStr = formatInputDate(new Date());
+  const completedTodayCount = habits.reduce(
+    (acc, h) => acc + ((h.completedDates ?? []).includes(todayStr) ? 1 : 0),
+    0,
+  );
+  const overallPercent = habits.length
+    ? Math.round((completedTodayCount / habits.length) * 100)
+    : 0;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -707,6 +834,20 @@ function HabitWidget({
           {habits.length}/3 habits
         </p>
         <p className="text-xs text-muted">Daily habits</p>
+      </div>
+
+      {/* Overall today's progress */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-ink">Today's progress</p>
+          <p className="text-sm text-muted">{overallPercent}%</p>
+        </div>
+        <div className="h-2 w-full rounded-lg bg-card-border">
+          <div
+            className="h-2 rounded-lg bg-accent transition-all"
+            style={{ width: `${overallPercent}%` }}
+          />
+        </div>
       </div>
 
       <form
@@ -724,79 +865,107 @@ function HabitWidget({
         />
         <button
           type="submit"
-          className="rounded-xl bg-accent px-4 py-3 font-medium text-white"
+          disabled={newHabit.trim() === ""}
+          className={`rounded-xl px-4 py-3 font-medium text-white ${
+            newHabit.trim() === ""
+              ? "bg-gray-300 cursor-not-allowed"
+              : "bg-accent"
+          }`}
         >
           Add
         </button>
       </form>
 
       <ul className="space-y-3">
-        {habits.map((habit) => (
-          <li
-            key={habit.id}
-            className="flex items-center gap-3 rounded-xl border border-card-border bg-background px-4 py-3"
-          >
-            <input
-              type="checkbox"
-              checked={habit.done}
-              onChange={() => toggleHabit(habit.id)}
-            />
-
-            <div className="min-w-0 flex-1">
-              {editingHabitId === habit.id ? (
+        {habits.map((habit) => {
+          const { percent } = last7Progress(habit.completedDates);
+          return (
+            <li
+              key={habit.id}
+              className="flex flex-col gap-2 rounded-xl border border-card-border bg-background px-4 py-3"
+            >
+              <div className="flex items-center gap-3">
                 <input
-                  value={editingHabitLabel}
-                  onChange={(e) => setEditingHabitLabel(e.target.value)}
-                  className="w-full rounded-lg border border-card-border bg-white px-3 py-2 text-ink outline-none focus:border-accent"
+                  type="checkbox"
+                  checked={(habit.completedDates ?? []).includes(
+                    formatInputDate(new Date()),
+                  )}
+                  onChange={() => toggleHabit(habit.id)}
                 />
-              ) : (
-                <span
-                  className={
-                    habit.done ? "line-through text-muted" : "text-ink"
-                  }
-                >
-                  {habit.label}
-                </span>
-              )}
-            </div>
 
-            {editingHabitId === habit.id ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => saveHabitEdit(habit.id)}
-                  className="text-sm font-medium text-accent-2"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelEditHabit}
-                  className="text-sm text-muted"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => startEditHabit(habit)}
-                  className="text-sm font-medium text-accent-2"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteHabit(habit.id)}
-                  className="text-sm text-muted"
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </li>
-        ))}
+                <div className="min-w-0 flex-1">
+                  {editingHabitId === habit.id ? (
+                    <input
+                      value={editingHabitLabel}
+                      onChange={(e) => setEditingHabitLabel(e.target.value)}
+                      className="w-full rounded-lg border border-card-border bg-white px-3 py-2 text-ink outline-none focus:border-accent"
+                    />
+                  ) : (
+                    <span
+                      className={
+                        (habit.completedDates ?? []).includes(
+                          formatInputDate(new Date()),
+                        )
+                          ? "line-through text-muted"
+                          : "text-ink"
+                      }
+                    >
+                      {habit.label}
+                    </span>
+                  )}
+                </div>
+
+                {editingHabitId === habit.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => saveHabitEdit(habit.id)}
+                      className="text-sm font-medium text-accent-2"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditHabit}
+                      className="text-sm text-muted"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => startEditHabit(habit)}
+                      className="text-sm font-medium text-accent-2"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteHabit(habit.id)}
+                      className="text-sm text-muted"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="mt-1">
+                <div className="h-2 w-full rounded-lg bg-card-border">
+                  <div
+                    className="h-2 rounded-lg bg-accent"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                <div className="mt-1 text-xs text-muted">
+                  {percent}% (last 7 days)
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
