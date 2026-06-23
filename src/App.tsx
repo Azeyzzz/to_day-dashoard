@@ -172,6 +172,10 @@ function App() {
     useState<CalendarEvent["color"]>("lavender");
 
   useEffect(() => {
+    window.localStorage.setItem(NAME_STORAGE_KEY, JSON.stringify(name));
+  }, [name]);
+
+  useEffect(() => {
     window.localStorage.setItem(HABITS_STORAGE_KEY, JSON.stringify(habits));
   }, [habits]);
 
